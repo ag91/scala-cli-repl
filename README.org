@@ -1,0 +1,78 @@
+* Scala CLI REPL
+:PROPERTIES:
+:CREATED:  [2023-07-20 Thu 20:59]
+:ID:       182b6600-63c4-4a57-b86f-85fce8b8c3c2
+:END:
+
+
+The REPL of [[https://scala-cli.virtuslab.org/][scala-cli]] in Emacs term mode.
+
+[[file:demo.gif]]
+
+** Installation
+:PROPERTIES:
+:ID:       6108d70b-9d48-4328-b0ce-51dc12d09107
+:END:
+
+You can access the REPL loading =scala-cli-repl.el=.
+
+If you like literate programming in Org Mode, you can load also
+=ob-scala-cli.el=, which lets you run blocks like the following
+
+#+begin_src org
+,#+begin_src scala :scala-version 3.0.0 :dep '("com.lihaoyi::os-lib:0.9.0")
+println("This is:" + os.pwd)
+,#+end_src
+#+end_src
+
+into the scala-cli REPL.
+
+*** Ob-scala-cli
+:PROPERTIES:
+:CREATED:  [2023-07-20 Thu 21:13]
+:END:
+
+
+*** Installing scala-cli
+
+You can check the instructions for your platform on https://scala-cli.virtuslab.org/install/.
+
+At the time of writing this, the easy way (on Linux) is:
+
+#+begin_src sh
+curl -fL https://github.com/Virtuslab/scala-cli/releases/latest/download/scala-cli-x86_64-pc-linux.gz | gzip -d > scala-cli
+chmod +x scala-cli
+sudo mv scala-cli /usr/local/bin/scala-cli
+#+end_src
+
+** Org Babel supported parameters 
+:PROPERTIES:
+:CREATED:  [2023-07-20 Thu 21:11]
+:END:
+
+Currently supported header parameters are:
+
+- :scala-version
+
+  you can define the Scala version you want your code to be evaluated in.
+
+- :dep
+
+  you pass a list of dependencies [[https://scala-cli.virtuslab.org/docs/reference/dependency/][in Mill format]] as a list, see example block above
+
+If you enjoy Elisp, you can get an updated list of valid parameters
+evaluating =ob-scala-cli-supported-params=.
+
+** Similar projects
+:PROPERTIES:
+:CREATED:  [2023-07-20 Thu 21:02]
+:END:
+
+This is a port of [[https://github.com/zwild/ammonite-term-repl][ammonite-term-repl]], which is now an archived
+repository.
+
+You can still use Ammonite through this mode with:
+
+#+begin_src elisp
+(setq scala-cli-repl-program-args '("--power" "--amm"))
+#+end_src
