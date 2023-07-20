@@ -30,8 +30,13 @@ into the scala-cli REPL.
 *** Ob-scala-cli
 :PROPERTIES:
 :CREATED:  [2023-07-20 Thu 21:13]
+:ID:       109cad9b-54ed-4095-aa29-8b30ec1955ac
 :END:
 
+It is sufficient to have =(scala . t)= in your
+=org-babel-load-languages=, because ob-scala-cli will run for scala
+org blocks. For more information on how to enable an org babel
+language check [[https://www.gnu.org/software/emacs/manual/html_node/org/Languages.html][here]] and [[https://orgmode.org/worg/org-contrib/babel/languages/index.html][here]].
 
 *** Installing scala-cli
 
