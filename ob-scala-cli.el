@@ -159,7 +159,7 @@ header is defined, we set it to our temporary Scala script."
       (with-demoted-errors (mkdir dir)) ; we don't care if dir already exists, since we are overwriting the file
       (with-temp-file file
         (seq-doseq (it (alist-get ':dep params))
-          (insert "//> using dep \n" it))
+          (insert "//> using dep " it "\n"))
         (insert (org-element-property :value el)))
       (message "Configuring ob-scala-cli for lsp through scala-cli...")
       (message "cd %s; scala-cli clean .; scala-cli setup-ide . %s"
