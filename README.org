@@ -38,6 +38,11 @@ It is sufficient to have =(scala . t)= in your
 org blocks. For more information on how to enable an org babel
 language check [[https://www.gnu.org/software/emacs/manual/html_node/org/Languages.html][here]] and [[https://orgmode.org/worg/org-contrib/babel/languages/index.html][here]].
 
+If you use lsp-mode and lsp-metals, you can also setup IDE style
+completion from within a src block with =ob-scala-cli-lsp-org=:
+
+[[file:demo-ob-scala-cli.gif]]
+
 *** Installing scala-cli
 
 You can check the instructions for your platform on https://scala-cli.virtuslab.org/install/.
