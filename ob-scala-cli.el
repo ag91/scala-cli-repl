@@ -93,7 +93,7 @@ Argument STR the result evaluated."
             (mapcar (lambda (d) (list p d)) value)
           (list
            p
-           (symbol-name value)))))
+           (or (ignore-errors (symbol-name value)) value)))))
     ob-scala-cli-supported-params)))
 
 (defun org-babel-execute:scala (body params)
@@ -136,6 +136,45 @@ Argument PARAMS the header arguments."
 
   (when ob-scala-cli-debug-p (print (concat "#### " ob-scala-cli-eval-result)))
   (ob-scala-cli--trim-result ob-scala-cli-eval-result))
+
+(defun ob-scala-cli-lsp-org ()
+  "Modify src block and enable `lsp-metals' to get goodies like code completion in literate programming.
+
+Call this on a second block if you want to reset dependencies or
+Scala version, otherwise you will lose the previous session.
+
+This works by creating a .sc file and loading the dependencies
+and scala version defined by the block parameters
+`scala-cli-params'. Since `lsp-org' requires a :tangle <file>
+header is defined, we set it to our temporary Scala script."
+  (interactive)
+  (when-let* ((el (org-element-at-point))
+              (_ (equal (car el) 'src-block))
+              (_ (equal (org-element-property :language el) "scala"))
+              (_ (with-demoted-errors (require 'lsp-metals))))
+    (let* ((default-directory (temporary-file-directory))
+           (dir "ob-scala-cli-for-lsp")
+           (file (concat default-directory dir "/ob-scala-lsp.sc"))
+           (params (org-babel-parse-header-arguments (org-element-property :parameters el))))
+      (with-demoted-errors (mkdir dir)) ; we don't care if dir already exists, since we are overwriting the file
+      (with-temp-file file
+        (seq-doseq (it (alist-get ':dep params))
+          (insert "//> using dep \n" it))
+        (insert (org-element-property :value el)))
+      (message "Configuring ob-scala-cli for lsp through scala-cli...")
+      (message "cd %s; scala-cli clean .; scala-cli setup-ide . %s"
+               dir
+               (s-join " " (ob-scala-cli-params (org-babel-parse-header-arguments (org-element-property :parameters el)))))
+      (shell-command "scala-cli %s setup-ide %s"
+                     (s-join " " (ob-scala-cli-params params))
+                     dir)
+      ;; add :tangle to src blk
+      (save-excursion
+        (goto-char (org-element-property :begin el))
+        (end-of-line)
+        (insert " :tangle " file)))
+    (message "Starting lsp-org via lsp-metals...")
+    (lsp-org)))
 
 (provide 'ob-scala-cli)
 

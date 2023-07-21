@@ -159,10 +159,7 @@ Argument FILE-NAME the file name."
                scala-cli-repl-buffer-name
                scala-cli-repl-program
                nil
-               nil
-               ;; nil
-               ;; scala-cli-repl-program-local-args
-               )
+               scala-cli-repl-program-local-args)
       (term-char-mode)
       (term-set-escape-char ?\C-x)
       (setq-local term-prompt-regexp scala-cli-repl-prompt-regex)
