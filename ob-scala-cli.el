@@ -60,7 +60,7 @@
 
 (defun ob-scala-cli-expand-body (body)
   "Expand the BODY to evaluate."
-  (format "{\n %s\n%s\n}" body ob-scala-cli-eval-needle))
+  (format "{\n%s\n\n}%s" body ob-scala-cli-eval-needle))
 
 (defun ob-scala-cli--trim-result (str)
   "Trim the result string.
