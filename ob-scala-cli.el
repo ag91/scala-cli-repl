@@ -58,6 +58,9 @@
 (defvar ob-scala-cli-supported-params '(:scala-version :dep)
   "The ob blocks headers supported by this ob-scala-cli.")
 
+(defvar ob-scala-cli-last-params nil
+  "Used to compare if params have changed before restarting REPL to update configuration.")
+
 (defun ob-scala-cli-expand-body (body)
   "Expand the BODY to evaluate."
   (format "{\n%s\n\n}%s" body ob-scala-cli-eval-needle))
@@ -102,12 +105,13 @@ This function is called by `org-babel-execute-src-block'
 Argument BODY the body to evaluate.
 Argument PARAMS the header arguments."
   (let ((scala-cli-params (ob-scala-cli-params params)))
-    (unless (or (comint-check-proc scala-cli-repl-buffer-name) (not scala-cli-params))
+    (unless (and (comint-check-proc scala-cli-repl-buffer-name) (equal scala-cli-params ob-scala-cli-last-params))
       (ignore-errors
         (kill-buffer scala-cli-repl-buffer-name))
       (save-window-excursion
         (let ((scala-cli-repl-program-args scala-cli-params))
           (scala-cli-repl)))
+      (setq-local ob-scala-cli-last-params scala-cli-params)
       (while (not (and (get-buffer scala-cli-repl-buffer-name)
                        (with-current-buffer scala-cli-repl-buffer-name
                          (save-excursion
@@ -160,6 +164,8 @@ header is defined, we set it to our temporary Scala script."
       (with-temp-file file
         (seq-doseq (it (alist-get ':dep params))
           (insert "//> using dep " it "\n"))
+        (when-let ((version (alist-get ':scala-version params)))
+          (insert "//> using scala " version "\n"))
         (insert (org-element-property :value el)))
       (message "Configuring ob-scala-cli for lsp through scala-cli...")
       (message "cd %s; scala-cli clean .; scala-cli setup-ide . %s"
