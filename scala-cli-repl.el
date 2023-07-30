@@ -68,6 +68,18 @@
   :type 'hook
   :group 'scala-cli-repl)
 
+(defcustom scala-cli-repl-use-closure-for-eval t
+  "When set it sends your Scala code wrapped in brackets (e.g.,
+{code}), which makes sure that your definitions don't alter the
+outer scope of the console.
+
+It may be that this affects semantics
+(e.g., I got a 'error: can't existentially abstract over
+parameterized type X' due to the closure, so this lets the user
+to work around that."
+  :type 'hook
+  :group 'scala-cli-repl)
+
 (defvar scala-cli-repl-program-local-args '()
   "Local args for scala-cli term repl program.")
 
@@ -105,9 +117,9 @@ Argument END the end region."
   (interactive "r")
   (scala-cli-repl-check-process)
   (let ((code (buffer-substring-no-properties start end)))
-    (comint-send-string scala-cli-repl-buffer-name "{\n")
+    (when scala-cli-repl-use-closure-for-eval (comint-send-string scala-cli-repl-buffer-name "{\n"))
     (comint-send-string scala-cli-repl-buffer-name code)
-    (comint-send-string scala-cli-repl-buffer-name "\n}")
+    (when scala-cli-repl-use-closure-for-eval(comint-send-string scala-cli-repl-buffer-name "\n}"))
     (comint-send-string scala-cli-repl-buffer-name "\n")
     (message
      (format "Sent: %s..." (scala-cli-repl-code-first-line code)))))
@@ -176,9 +188,9 @@ Argument FILE-NAME the file name."
   "Send the code to the scala-cli buffer.
 Argument STRING the code to send."
   (scala-cli-repl-check-process)
-  (comint-send-string scala-cli-repl-buffer-name "{\n")
+  (when scala-cli-repl-use-closure-for-eval (comint-send-string scala-cli-repl-buffer-name "{\n"))
   (comint-send-string scala-cli-repl-buffer-name string)
-  (comint-send-string scala-cli-repl-buffer-name "\n}")
+  (when scala-cli-repl-use-closure-for-eval (comint-send-string scala-cli-repl-buffer-name "\n}"))
   (comint-send-string scala-cli-repl-buffer-name "\n")
   (message
    (format "Sent: %s..." (scala-cli-repl-code-first-line string))))
