@@ -55,7 +55,7 @@
 (defvar ob-scala-cli-eval-needle ";;;;;;;;;"
   "The mark to tell whether the evaluation is done.")
 
-(defvar ob-scala-cli-supported-params '(:scala-version :dep)
+(defvar ob-scala-cli-supported-params '(:scala-version :dep :jvm)
   "The ob blocks headers supported by this ob-scala-cli.")
 
 (defvar ob-scala-cli-last-params nil
@@ -82,8 +82,8 @@ Argument STR the result evaluated."
 (defun ob-scala-cli-params (params)
   "Extract scala-cli command line parameters from PARAMS.
 
->> (ob-scala-cli-params '((:tangle . no) (:scala-version . 3.0.0)))
-=> (\"--scala-version\" \"3.0.0\")"
+>> (ob-scala-cli-params '((:tangle . no) (:scala-version . 3.0.0) (:jvm . 11)))
+=> (\"--scala-version\" \"3.0.0\" \"--jvm\" \"11\")"
   (flatten-list
    (mapcar
     (lambda (param)
@@ -92,11 +92,13 @@ Argument STR the result evaluated."
                          params))
                  (p (s-replace ":" "--" (symbol-name param)) ; NOTE: this means we want `ob-scala-cli-params' to match scala-cli command line params
                     ))
-        (if (listp value)
-            (mapcar (lambda (d) (list p d)) value)
-          (list
-           p
-           (or (ignore-errors (symbol-name value)) value)))))
+        (cond
+         ((listp value) (mapcar (lambda (d) (list p d)) value))
+         ((numberp value) (list p (number-to-string value)))
+         (t (list
+             p
+             (or (ignore-errors (symbol-name value)) value)))
+         )))
     ob-scala-cli-supported-params)))
 
 (defun org-babel-execute:scala (body params)
