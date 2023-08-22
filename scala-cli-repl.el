@@ -48,7 +48,7 @@
   :type 'string
   :group 'scala-cli-repl)
 
-(defcustom scala-cli-repl-program "scala-cli"
+(defcustom scala-cli-repl-program (executable-find "scala-cli")
   "Program name for scala-cli."
   :type 'string
   :group 'scala-cli-repl)
