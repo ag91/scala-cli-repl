@@ -61,9 +61,11 @@
 (defvar ob-scala-cli-last-params nil
   "Used to compare if params have changed before restarting REPL to update configuration.")
 
-(defun ob-scala-cli-expand-body (body)
+(defun ob-scala-cli-expand-body (body disable-closure)
   "Expand the BODY to evaluate."
-  (format "{\n%s\n\n}%s" body ob-scala-cli-eval-needle))
+  (format (if disable-closure "%s\n\n%s" "{\n%s\n\n}%s")
+          body
+          ob-scala-cli-eval-needle))
 
 (defun ob-scala-cli--trim-result (str)
   "Trim the result string.
@@ -132,7 +134,8 @@ Argument PARAMS the header arguments."
        (when ob-scala-cli-debug-p (print str))
        (setq ob-scala-cli-eval-result (concat ob-scala-cli-eval-result str)))))
 
-  (let ((full-body (ob-scala-cli-expand-body body)))
+  (let* ((disable-closure (assoc :no-closure params))
+         (full-body (ob-scala-cli-expand-body body disable-closure)))
     (comint-send-string scala-cli-repl-buffer-name full-body)
     (comint-send-string scala-cli-repl-buffer-name "\n"))
 
