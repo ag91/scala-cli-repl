@@ -58,6 +58,7 @@ sudo mv scala-cli /usr/local/bin/scala-cli
 ** Org Babel supported parameters 
 :PROPERTIES:
 :CREATED:  [2023-07-20 Thu 21:11]
+:ID:       83d7d014-62dc-457c-9210-ec05661265fb
 :END:
 
 Currently supported header parameters are:
@@ -70,6 +71,23 @@ Currently supported header parameters are:
 
   you pass a list of dependencies [[https://scala-cli.virtuslab.org/docs/reference/dependency/][in Mill format]] as a list, see example block above
 
+- :jvm
+
+  you can set the JVM version to use for evaluating your code
+
+- :no-closure
+
+  by default the code is evaluated in a scope to not leak variables in the global scope of the REPL, but there may be cases where this causes errors like
+
+  #+begin_src text
+#+RESULTS:
+: ^
+:        error: eof expected but '}' found.
+```
+  #+end_src
+
+  this header fixes those by removing the extra scope.
+  
 If you enjoy Elisp, you can get an updated list of valid parameters
 evaluating =ob-scala-cli-supported-params=.
 
