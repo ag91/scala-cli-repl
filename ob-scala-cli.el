@@ -95,7 +95,11 @@ Argument PARAMS the header arguments."
          (file (ob-scala-cli--mk-file info))
          (body (nth 1 info))
          (params (org-combine-plists ob-scala-cli-default-params (cl--alist-to-plist params)))
+         (version (plist-get params ':scala-version))
          (scala-cli-params (ob-scala-cli--params params))
+         (parse-response (if (s-starts-with? "3" version)
+                             'ob-scala-cli--parse-response-3
+                           'ob-scala-cli--parse-response-2))
          (ob-scala-cli-eval-result ""))
     (unless (and (comint-check-proc scala-cli-repl-buffer-name) (equal scala-cli-params ob-scala-cli--last-params))
       (ignore-errors
@@ -128,15 +132,29 @@ Argument PARAMS the header arguments."
     (sit-for 0.2)
 
     (when ob-scala-cli-debug-p (message "#### %s" ob-scala-cli-eval-result))
-    (->> ob-scala-cli-eval-result
-         (s-split (format "Loading %s..." file)) ; the first part (loading ...) is not interesting
-         cdr
-         (s-join "")
-         (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
-         (s-replace (format "%s:" file) "On line ") ; the temp file name is not interesting
-         s-trim
-         (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
-         )))
+    (funcall parse-response file ob-scala-cli-eval-result)))
+
+(defun ob-scala-cli--parse-response-2 (file response)
+  (->> response
+       (s-split (format "Loading %s..." file)) ; the first part (loading ...) is not interesting
+       cdr
+       (s-join "")
+       (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
+       (s-replace (format "%s:" file) "On line ") ; the temp file name is not interesting
+       s-trim
+       (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
+       ))
+
+(defun ob-scala-cli--parse-response-3 (file response)
+  (->> response
+       (s-split (format ":load %s" file)) ; the first line is not interesting
+       cdr
+       (s-join "")
+       (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
+       (replace-regexp-in-string "^~" "") ; remove a useless line with ~
+       s-trim
+       (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
+       ))
 
 (defun ob-scala-cli-lsp-org ()
   "Modify src block and enable `lsp-metals' to get goodies like code completion in literate programming.
@@ -154,8 +172,8 @@ header is defined, we set it to our temporary Scala script."
          (params (nth 2 info))
          (params (org-combine-plists ob-scala-cli-default-params (cl--alist-to-plist params)))
          (s-params (s-join " " (ob-scala-cli--params params)))
-         (deps (plist-get ':dep params))
-         (version (plist-get ':scala-version params))
+         (deps (plist-get params ':dep))
+         (version (plist-get params ':scala-version))
          (file (ob-scala-cli--mk-lsp-file info))
          (dir (file-name-directory file))
          (default-directory dir)) ; to change the working directory for shell-command
