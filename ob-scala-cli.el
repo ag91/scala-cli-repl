@@ -1,8 +1,8 @@
-;;; ob-scala-cli.el --- org-babel for scala evaluation in Scala-Cli.
+;;; ob-scala-cli.el --- org-babel for scala evaluation in Scala-Cli. -*- lexical-binding: t; -*-
 
 ;; Author: Andrea <andrea-dev@hotmail.com>
 ;; URL: https://github.com/ag91/scala-cli-repl
-;; Package-Requires: ((s "1.12.0") (scala-cli-term-repl "0.0") (xterm-color "1.7"))
+;; Package-Requires: ((emacs "28.1") (s "1.12.0") (scala-cli-term-repl "0.0") (xterm-color "1.7"))
 ;; Version: 0.0
 ;; Keywords: tools, scala-cli, org-mode, scala, org-babel
 
@@ -41,59 +41,42 @@
 (add-to-list 'org-babel-tangle-lang-exts '("scala" . "scala"))
 (add-to-list 'org-src-lang-modes '("scala" . scala))
 
+(defcustom ob-scala-cli-default-params '(:scala-version "3.3.0" :jvm 17)
+  "Default parameters for scala-cli."
+  :type 'plist
+  :group 'org-babel)
+
 (defcustom ob-scala-cli-prompt-str "scala>"
   "Regex for scala-cli prompt."
+  :type 'string
+  :group 'org-babel)
+
+(defcustom ob-scala-cli-supported-params '(:scala-version :dep :jvm)
+  "The ob blocks headers supported by this ob-scala-cli."
+  :type '(repeat symbol)
+  :group 'ob-babel)
+
+(defcustom ob-scala-cli-temp-dir (file-name-as-directory (concat temporary-file-directory "ob-scala-cli"))
+  "A directory for temporary files."
   :type 'string
   :group 'org-babel)
 
 (defvar ob-scala-cli-debug-p nil
   "The variable to control the debug message.")
 
-(defvar ob-scala-cli-eval-result ""
-  "The result of the evaluation.")
-
-(defvar ob-scala-cli-eval-needle ";;;;;;;;;"
-  "The mark to tell whether the evaluation is done.")
-
-(defvar ob-scala-cli-supported-params '(:scala-version :dep :jvm)
-  "The ob blocks headers supported by this ob-scala-cli.")
-
-(defvar ob-scala-cli-last-params nil
+(defvar ob-scala-cli--last-params nil
   "Used to compare if params have changed before restarting REPL to update configuration.")
 
-(defun ob-scala-cli-expand-body (body disable-closure)
-  "Expand the BODY to evaluate."
-  (format (if disable-closure "%s\n\n%s" "{\n%s\n\n}%s")
-          body
-          ob-scala-cli-eval-needle))
-
-(defun ob-scala-cli--trim-result (str)
-  "Trim the result string.
-Argument STR the result evaluated."
-  (with-temp-buffer
-    (insert (s-trim
-             (s-chop-suffix
-              ob-scala-cli-prompt-str
-              (s-chop-prefix
-               "}"
-               (s-trim
-                (s-join "" (cdr (s-split ob-scala-cli-eval-needle str))))))))
-    (delete-trailing-whitespace)
-    (buffer-string)))
-
-(defun ob-scala-cli-params (params)
+(defun ob-scala-cli--params (params)
   "Extract scala-cli command line parameters from PARAMS.
 
->> (ob-scala-cli-params '((:tangle . no) (:scala-version . 3.0.0) (:jvm . 11)))
+>> (ob-scala-cli--params '(:tangle no :scala-version \"3.0.0\" :jvm \"11\"))
 => (\"--scala-version\" \"3.0.0\" \"--jvm\" \"11\")"
   (flatten-list
    (mapcar
     (lambda (param)
-      (when-let ((value (alist-get
-                         param
-                         params))
-                 (p (s-replace ":" "--" (symbol-name param)) ; NOTE: this means we want `ob-scala-cli-params' to match scala-cli command line params
-                    ))
+      (when-let ((value (plist-get params param))
+                 (p (s-replace ":" "--" (symbol-name param)))) ; NOTE: this means we want `ob-scala-cli--params' to match scala-cli command line params
         (cond
          ((listp value) (mapcar (lambda (d) (list p d)) value))
          ((numberp value) (list p (number-to-string value)))
@@ -108,43 +91,52 @@ Argument STR the result evaluated."
 This function is called by `org-babel-execute-src-block'
 Argument BODY the body to evaluate.
 Argument PARAMS the header arguments."
-  (let ((scala-cli-params (ob-scala-cli-params params)))
-    (unless (and (comint-check-proc scala-cli-repl-buffer-name) (equal scala-cli-params ob-scala-cli-last-params))
+  (let* ((info (org-babel-get-src-block-info))
+         (file (ob-scala-cli--mk-file info))
+         (body (nth 1 info))
+         (params (org-combine-plists ob-scala-cli-default-params (cl--alist-to-plist params)))
+         (scala-cli-params (ob-scala-cli--params params))
+         (ob-scala-cli-eval-result ""))
+    (unless (and (comint-check-proc scala-cli-repl-buffer-name) (equal scala-cli-params ob-scala-cli--last-params))
       (ignore-errors
         (kill-buffer scala-cli-repl-buffer-name))
       (save-window-excursion
         (let ((scala-cli-repl-program-args scala-cli-params))
           (scala-cli-repl)))
-      (setq-local ob-scala-cli-last-params scala-cli-params)
+      (setq-local ob-scala-cli--last-params scala-cli-params)
       (while (not (and (get-buffer scala-cli-repl-buffer-name)
                        (with-current-buffer scala-cli-repl-buffer-name
                          (save-excursion
                            (goto-char (point-min))
                            (search-forward ob-scala-cli-prompt-str nil t)))))
         (message "Waiting for scala-cli to start...")
-        (sit-for 0.5))))
+        (sit-for 0.5)))
 
-  (setq ob-scala-cli-eval-result "")
+    (set-process-filter
+     (get-buffer-process scala-cli-repl-buffer-name)
+     (lambda (process str)
+       (term-emulate-terminal process str)
+       (let ((str (substring-no-properties (xterm-color-filter str)))) ; make a plain text
+         (when ob-scala-cli-debug-p (print str))
+         (setq ob-scala-cli-eval-result (concat ob-scala-cli-eval-result str)))))
 
-  (set-process-filter
-   (get-buffer-process scala-cli-repl-buffer-name)
-   (lambda (process str)
-     (term-emulate-terminal process str)
-     (let ((str (s-replace "" "" (substring-no-properties (xterm-color-filter str)))))
-       (when ob-scala-cli-debug-p (print str))
-       (setq ob-scala-cli-eval-result (concat ob-scala-cli-eval-result str)))))
+    (with-temp-file file (insert body))
+    (comint-send-string scala-cli-repl-buffer-name (format ":load %s\n" file)) ; evaluate code in REPL
 
-  (let* ((disable-closure (assoc :no-closure params))
-         (full-body (ob-scala-cli-expand-body body disable-closure)))
-    (comint-send-string scala-cli-repl-buffer-name full-body)
-    (comint-send-string scala-cli-repl-buffer-name "\n"))
+    (while (not (s-ends-with? ob-scala-cli-prompt-str (s-trim-right ob-scala-cli-eval-result)))
+      (sit-for 0.5))
+    (sit-for 0.2)
 
-  (while (not (s-ends-with? ob-scala-cli-prompt-str (s-trim-right ob-scala-cli-eval-result)))
-    (sit-for 0.5))
-  (sit-for 0.2)
-
-  (when ob-scala-cli-debug-p (print (concat "#### " ob-scala-cli-eval-result)))
-  (ob-scala-cli--trim-result ob-scala-cli-eval-result))
+    (when ob-scala-cli-debug-p (message "#### %s" ob-scala-cli-eval-result))
+    (->> ob-scala-cli-eval-result
+         (s-split (format "Loading %s..." file)) ; the first part (loading ...) is not interesting
+         cdr
+         (s-join "")
+         (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
+         (s-replace (format "%s:" file) "On line ") ; the temp file name is not interesting
+         s-trim
+         (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
+         )))
 
 (defun ob-scala-cli-lsp-org ()
   "Modify src block and enable `lsp-metals' to get goodies like code completion in literate programming.
@@ -157,36 +149,65 @@ and scala version defined by the block parameters
 `scala-cli-params'. Since `lsp-org' requires a :tangle <file>
 header is defined, we set it to our temporary Scala script."
   (interactive)
-  (when-let* ((el (org-element-at-point))
-              (_ (equal (car el) 'src-block))
-              (_ (equal (org-element-property :language el) "scala"))
-              (_ (with-demoted-errors (require 'lsp-metals))))
-    (let* ((default-directory (temporary-file-directory))
-           (dir "ob-scala-cli-for-lsp")
-           (file (concat default-directory dir "/ob-scala-lsp.sc"))
-           (params (org-babel-parse-header-arguments (org-element-property :parameters el))))
-      (with-demoted-errors (mkdir dir)) ; we don't care if dir already exists, since we are overwriting the file
+  (let* ((info (org-babel-get-src-block-info))
+         (body (nth 1 info))
+         (params (nth 2 info))
+         (params (org-combine-plists ob-scala-cli-default-params (cl--alist-to-plist params)))
+         (s-params (s-join " " (ob-scala-cli--params params)))
+         (deps (plist-get ':dep params))
+         (version (plist-get ':scala-version params))
+         (file (ob-scala-cli--mk-lsp-file info))
+         (dir (file-name-directory file))
+         (default-directory dir)) ; to change the working directory for shell-command
+    (when (with-demoted-errors "Error: %S" (require 'lsp-metals))
       (with-temp-file file
-        (seq-doseq (it (alist-get ':dep params))
+        (seq-doseq (it deps)
           (insert "//> using dep " it "\n"))
-        (when-let ((version (alist-get ':scala-version params)))
+        (when version
           (insert "//> using scala " version "\n"))
-        (insert (org-element-property :value el)))
+        (insert body))
       (message "Configuring ob-scala-cli for lsp through scala-cli...")
-      (message "cd %s; scala-cli clean .; scala-cli setup-ide . %s"
-               dir
-               (s-join " " (ob-scala-cli-params (org-babel-parse-header-arguments (org-element-property :parameters el)))))
-      (shell-command "scala-cli %s setup-ide %s"
-                     (s-join " " (ob-scala-cli-params params))
-                     dir)
-      ;; add :tangle to src blk
-      (save-excursion
-        (goto-char (org-element-property :begin el))
-        (end-of-line)
-        (insert " :tangle " file)))
-    (message "Starting lsp-org via lsp-metals...")
-    (lsp-org)))
+      (message "cd %s; scala-cli clean .; scala-cli setup-ide . %s" dir s-params)
+      (shell-command (format "%s %s setup-ide ." scala-cli-repl-program s-params))
+      (message "Starting lsp-org via lsp-metals...")
+      (lsp-org))))
+
+(defun ob-scala-cli--mk-file (&optional info lsp)
+  "Create a temporary file for the current source block."
+  (let* ((info (or info (org-babel-get-src-block-info)))
+         (params (nth 2 info))
+         (temp-dir (file-name-as-directory (concat ob-scala-cli-temp-dir (ob-scala-cli--get-id))))
+         (temp-dir (if lsp
+                       (file-name-as-directory (concat temp-dir "lsp"))
+                     temp-dir))
+         (block-name (nth 4 (org-babel-get-src-block-info)))
+         (lsp-name (or block-name (org-id-uuid)))
+         (file-name (format "%s.sc" (if lsp lsp-name "repl")))
+         (temp-file (concat temp-dir file-name)))
+    (unless (file-exists-p temp-dir)
+      (make-directory temp-dir 'parents))
+    temp-file))
+
+(defun ob-scala-cli--mk-lsp-file (info)
+  "Create a temporary file for lsp or use the specified tangle file."
+  (let* ((params (nth 2 info))
+         (tangle (cdr (assoc :tangle params))))
+    (if (or (not tangle) (string= tangle "no"))
+        (let ((file (ob-scala-cli--mk-file info t)))
+          (ob-scala-cli--set-tangle file) ; https://emacs-lsp.github.io/lsp-mode/manual-language-docs/lsp-org/
+          file)
+      tangle)))
+
+(defun ob-scala-cli--set-tangle (file)
+  (save-excursion
+    (goto-char (org-babel-where-is-src-block-head))
+    (end-of-line)
+    (insert " :tangle " file)))
+
+(defun ob-scala-cli--get-id ()
+  (org-id-get (point-min)))
 
 (provide 'ob-scala-cli)
 
 ;;; ob-scala-cli.el ends here
+
