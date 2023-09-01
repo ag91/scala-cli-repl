@@ -61,6 +61,11 @@
   :type 'string
   :group 'org-babel)
 
+(defcustom scala-cli-ob-force-kill nil
+  "If non-nil, kill the Scala CLI buffer and process without asking for confirmation."
+  :type 'boolean
+  :group 'ob-babel)
+
 (defvar ob-scala-cli-debug-p nil
   "The variable to control the debug message.")
 
@@ -102,8 +107,7 @@ Argument PARAMS the header arguments."
                            'ob-scala-cli--parse-response-2))
          (ob-scala-cli-eval-result ""))
     (unless (and (comint-check-proc scala-cli-repl-buffer-name) (equal scala-cli-params ob-scala-cli--last-params))
-      (ignore-errors
-        (kill-buffer scala-cli-repl-buffer-name))
+      (ignore-errors (ob-scala-cli--kill-buffer))
       (save-window-excursion
         (let ((scala-cli-repl-program-args scala-cli-params))
           (scala-cli-repl)))
@@ -133,6 +137,17 @@ Argument PARAMS the header arguments."
 
     (when ob-scala-cli-debug-p (message "#### %s" ob-scala-cli-eval-result))
     (funcall parse-response file ob-scala-cli-eval-result)))
+
+(defun ob-scala-cli--kill-buffer ()
+  "Kills Scala CLI buffer."
+  (let ((buffer (get-buffer scala-cli-repl-buffer-name)))
+    (when buffer
+      (if scala-cli-ob-force-kill
+          (let ((process (get-buffer-process buffer)))
+            (when process
+              (set-process-query-on-exit-flag process nil)
+              (kill-process process)))
+        (kill-buffer buffer)))))
 
 (defun ob-scala-cli--parse-response-2 (file response)
   (->> response
