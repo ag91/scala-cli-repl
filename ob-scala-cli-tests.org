@@ -12,19 +12,21 @@ Run tests:
 
 Change if needed:
 #+begin_src elisp :results none
-(setq-local scala-cli-ob-force-kill t ; Don't ask to kill the buffer if options changed
-            jvm 17
+(setq-local jvm 17
             scala2 "2.13.11"
             scala3 "3.3.0"
             dep-os-lib "com.lihaoyi::os-lib:0.9.1"
             dep-pprint "com.lihaoyi::pprint:0.7.0")
+
+(setq-local scala-cli-ob-force-kill t ; Don't ask to kill the buffer if options changed
+            ob-scala-cli-default-params `(:scala-version ,scala2 :jvm ,jvm)) ; Default options
 #+end_src
 
 It is expected that results at least the same.
 
 * Tests
 ** Simple one-liner
-#+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm)
+#+begin_src scala
 1 + 1
 #+end_src
 
@@ -33,7 +35,7 @@ It is expected that results at least the same.
 
 ** Compilation errors in Scala 2.13
 *** Without a wrapping object
-#+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm)
+#+begin_src scala
 def always1(x: Int): Int = 1
 def foo(x: Int): Int = println("error")
 def id(x: Int): Int = x
@@ -52,7 +54,7 @@ def id(x: Int): Int = x
 It shows a wrong error line, because Scala 2.13 doesn't allow top level definitions outside package objects.
 
 *** With a wrapping object
-#+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm)
+#+begin_src scala
 object Test {
   def always1(x: Int): Int = 1
   def foo(x: Int): Int = println("error")
@@ -68,7 +70,7 @@ object Test {
 :         required: Int
 
 ** Function definition
-#+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm)
+#+begin_src scala
 def increment(x: Int): Int = x + 1
 #+end_src
 
@@ -76,7 +78,7 @@ def increment(x: Int): Int = x + 1
 : def increment(x: Int): Int
 
 ** Usage of the function defined in one of previous blocks
-#+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm)
+#+begin_src scala
 increment(1)
 #+end_src
 
@@ -84,7 +86,7 @@ increment(1)
 : val res1: Int = 2
 
 ** Dependency
-#+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm) :dep (list dep-os-lib)
+#+begin_src scala :dep (list dep-os-lib)
 {
   val file = os.pwd / "ob-scala-cli-tests.org"
   println(s"Is ${file.last} a file? ${os.isFile(file)}")
@@ -114,7 +116,7 @@ If you want to preserve definitions between org src blocks, either:
   and don't override options in blocks.
 
 ** Multiple dependencies
-#+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm) :dep (list dep-os-lib dep-pprint)
+#+begin_src scala :dep (list dep-os-lib dep-pprint)
 {
   val file = os.pwd / "ob-scala-cli-tests.org"
   println(s"Is ${file.last} a file? ${os.isFile(file)}")
@@ -132,7 +134,7 @@ pprint.pprintln(Seq(1, 2, 3), width = 5)
 
 ** Compilation errors in Scala 3
 *** Without wrapping object
-#+begin_src scala :scala-version (format "%s" scala3) :jvm (format "%s" jvm)
+#+begin_src scala :scala-version (format "%s" scala3)
 def always1(x: Int): Int = 1
 def foo(x: Int): Int = println("error")
 def id(x: Int): Int = x
