@@ -108,6 +108,7 @@ Argument PARAMS the header arguments."
          (ob-scala-cli-eval-result ""))
     (unless (and (comint-check-proc scala-cli-repl-buffer-name) (equal scala-cli-params ob-scala-cli--last-params))
       (ignore-errors (ob-scala-cli--kill-buffer))
+      (sit-for 0.5)
       (save-window-excursion
         (let ((scala-cli-repl-program-args scala-cli-params))
           (scala-cli-repl)))

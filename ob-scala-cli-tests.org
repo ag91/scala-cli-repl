@@ -32,7 +32,7 @@ It is expected that results at least the same.
 : val res0: Int = 2
 
 ** Compilation errors in Scala 2.13
-*** Without wrapping object
+*** Without a wrapping object
 #+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm)
 def always1(x: Int): Int = 1
 def foo(x: Int): Int = println("error")
@@ -51,7 +51,7 @@ def id(x: Int): Int = x
 **** Note
 It shows a wrong error line, because Scala 2.13 doesn't allow top level definitions outside package objects.
 
-*** With wrapping object
+*** With a wrapping object
 #+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm)
 object Test {
   def always1(x: Int): Int = 1
@@ -90,6 +90,9 @@ increment(1)
   println(s"Is ${file.last} a file? ${os.isFile(file)}")
 }
 #+end_src
+
+#+RESULTS:
+: Is ob-scala-cli-tests.org a file? true
 
 ** Previous definitions lost after changing options
 #+begin_src scala :scala-version (format "%s" scala2) :jvm (format "%s" jvm) :dep (list dep-os-lib)
