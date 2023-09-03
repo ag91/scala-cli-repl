@@ -83,11 +83,9 @@ to work around that."
 (defvar scala-cli-repl-program-local-args '()
   "Local args for scala-cli term repl program.")
 
-(defvar scala-cli-repl--process nil)
-
 (defun scala-cli-repl-get-process ()
   "Return the active process associated with Scala CLI buffer."
-  scala-cli-repl--process)
+  (get-buffer-process scala-cli-repl-buffer-name))
 
 (defun scala-cli-repl-get-buffer ()
   "Return the current Scala CLI buffer."
@@ -177,7 +175,6 @@ Argument FILE-NAME the file name."
                                scala-cli-repl-program
                                nil
                                scala-cli-repl-program-local-args)))
-      (setq scala-cli-repl--process (get-buffer-process proc-buffer))
       (with-current-buffer proc-buffer
         (term-char-mode)
         (term-set-escape-char ?\C-x)
