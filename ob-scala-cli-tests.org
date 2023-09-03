@@ -2,11 +2,19 @@
 Run tests:
 #+begin_src elisp :results none
 (let ((current-pos (point)))
-  (save-excursion
+  ;; Remove RESULTS blocks to know where we stopped
+  (goto-char (point-min))
+  (ignore-errors
     (while (org-babel-next-src-block 1)
-      (unless (= (org-element-property :begin (org-element-at-point)) current-pos)
-        (org-babel-remove-result-one-or-many nil)
-        (org-babel-execute-src-block)))))
+      (org-babel-remove-result-one-or-many nil)))
+
+  ;; Execute code blocks
+  (goto-char current-pos)
+  (while (org-babel-next-src-block 1)
+    (unless (= (org-element-property :begin (org-element-at-point)) current-pos)
+      (org-babel-execute-src-block)))
+
+  (goto-char current-pos))
 #+end_src
 
 Change if needed:
@@ -19,6 +27,8 @@ Change if needed:
 
 (setq-local scala-cli-ob-force-kill t ; Don't ask to kill the buffer if options changed
             ob-scala-cli-default-params `(:scala-version ,scala2 :jvm ,jvm)) ; Default options
+
+(ob-scala-cli-kill-buffer)
 #+end_src
 
 It is expected that results at least the same.

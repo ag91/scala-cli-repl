@@ -1,4 +1,4 @@
-;;; scala-cli-repl.el --- Scala CLI REPL in term mode.
+;;; scala-cli-repl.el --- Scala CLI REPL in term mode. -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2023 Andrea
 
@@ -83,10 +83,23 @@ to work around that."
 (defvar scala-cli-repl-program-local-args '()
   "Local args for scala-cli term repl program.")
 
+(defvar scala-cli-repl--process nil)
+
+(defun scala-cli-repl-get-process ()
+  "Return the active process associated with Scala CLI buffer."
+  scala-cli-repl--process)
+
+(defun scala-cli-repl-get-buffer ()
+  "Return the current Scala CLI buffer."
+  (get-buffer scala-cli-repl-buffer-name))
+
+(defun scala-cli-repl-is-alive? ()
+  "Return nil if there is no alive process."
+  (comint-check-proc scala-cli-repl-buffer-name))
+
 (defun scala-cli-repl-check-process ()
   "Check if there is an active scala-cli process."
-  (unless (comint-check-proc scala-cli-repl-buffer-name)
-    (error "Scala-Cli is not running")))
+  (unless (scala-cli-repl-is-alive?) (error "Scala-Cli is not running")))
 
 (defun scala-cli-repl-code-first-line (code)
   "Get the first line of CODE."
@@ -155,29 +168,23 @@ Argument FILE-NAME the file name."
 
     (setq scala-cli-repl-program-local-args scala-cli-repl-program-args)
 
-    ;; (when-let ((_ scala-cli-repl-auto-detect-predef-file)
-    ;;            (path (or (locate-dominating-file default-directory scala-cli-repl-predef-sc-filename)
-    ;;                      scala-cli-repl-default-predef-dir))
-    ;;            (file (expand-file-name scala-cli-repl-predef-sc-filename path)))
-    ;;   (setq scala-cli-repl-program-local-args
-    ;;         (append scala-cli-repl-program-args `("-p" ,file))))
-
     (message (format "Run: %s %s"
                      scala-cli-repl-program
                      (s-join " " scala-cli-repl-program-local-args)))
 
-    (with-current-buffer
-        (apply 'term-ansi-make-term
-               scala-cli-repl-buffer-name
-               scala-cli-repl-program
-               nil
-               scala-cli-repl-program-local-args)
-      (term-char-mode)
-      (term-set-escape-char ?\C-x)
-      (setq-local term-prompt-regexp scala-cli-repl-prompt-regex)
-      (setq-local term-scroll-show-maximum-output t)
-      (setq-local term-scroll-to-bottom-on-output t)
-      (run-hooks 'scala-cli-repl-run-hook)))
+    (let* ((proc-buffer (apply 'term-ansi-make-term
+                               scala-cli-repl-buffer-name
+                               scala-cli-repl-program
+                               nil
+                               scala-cli-repl-program-local-args)))
+      (setq scala-cli-repl--process (get-buffer-process proc-buffer))
+      (with-current-buffer proc-buffer
+        (term-char-mode)
+        (term-set-escape-char ?\C-x)
+        (setq-local term-prompt-regexp scala-cli-repl-prompt-regex)
+        (setq-local term-scroll-show-maximum-output t)
+        (setq-local term-scroll-to-bottom-on-output t)
+        (run-hooks 'scala-cli-repl-run-hook))))
 
   (pop-to-buffer scala-cli-repl-buffer-name))
 
@@ -251,3 +258,4 @@ is available."
 (provide 'scala-cli-repl)
 
 ;;; scala-cli-repl.el ends here
+

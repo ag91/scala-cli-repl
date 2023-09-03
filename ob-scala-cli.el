@@ -98,57 +98,58 @@ Argument BODY the body to evaluate.
 Argument PARAMS the header arguments."
   (let* ((info (org-babel-get-src-block-info))
          (file (ob-scala-cli--mk-file info))
-         (body (nth 1 info))
          (params (org-combine-plists ob-scala-cli-default-params (cl--alist-to-plist params)))
          (version (plist-get params ':scala-version))
          (scala-cli-params (ob-scala-cli--params params))
-         (parse-response (if (s-starts-with? "3" version)
-                             'ob-scala-cli--parse-response-3
-                           'ob-scala-cli--parse-response-2))
-         (ob-scala-cli-eval-result ""))
-    (unless (and (comint-check-proc scala-cli-repl-buffer-name) (equal scala-cli-params ob-scala-cli--last-params))
-      (ignore-errors (ob-scala-cli--kill-buffer))
-      (sit-for 0.5)
+         (parse-response (if (s-starts-with? "3" version) 'ob-scala-cli--parse-response-3 'ob-scala-cli--parse-response-2)))
+    (unless (and (scala-cli-repl-is-alive?) (equal scala-cli-params ob-scala-cli--last-params))
+      (ignore-errors (ob-scala-cli-kill-buffer))
+      (setq-local ob-scala-cli--last-params scala-cli-params)
       (save-window-excursion
         (let ((scala-cli-repl-program-args scala-cli-params))
           (scala-cli-repl)))
-      (setq-local ob-scala-cli--last-params scala-cli-params)
-      (while (not (and (get-buffer scala-cli-repl-buffer-name)
-                       (with-current-buffer scala-cli-repl-buffer-name
+      (while (not (and (scala-cli-repl-get-buffer)
+                       (with-current-buffer (scala-cli-repl-get-buffer)
                          (save-excursion
                            (goto-char (point-min))
                            (search-forward ob-scala-cli-prompt-str nil t)))))
         (message "Waiting for scala-cli to start...")
-        (sit-for 0.5)))
-
-    (set-process-filter
-     (get-buffer-process scala-cli-repl-buffer-name)
-     (lambda (process str)
-       (term-emulate-terminal process str)
-       (let ((str (substring-no-properties (xterm-color-filter str)))) ; make a plain text
-         (when ob-scala-cli-debug-p (print str))
-         (setq ob-scala-cli-eval-result (concat ob-scala-cli-eval-result str)))))
+        (accept-process-output (scala-cli-repl-get-process))))
 
     (with-temp-file file (insert body))
-    (comint-send-string scala-cli-repl-buffer-name (format ":load %s\n" file)) ; evaluate code in REPL
+    (funcall parse-response
+             file
+             (ob-scala-cli--wait-for-response (format ":load %s\n" file)))))
 
-    (while (not (s-ends-with? ob-scala-cli-prompt-str (s-trim-right ob-scala-cli-eval-result)))
-      (sit-for 0.5))
-    (sit-for 0.2)
+(defun ob-scala-cli--wait-for-response (cmd)
+  "Send CMD to Scala REPL, wait for REPL prompt and return all consumed output."
+  (let ((result "")
+        (completed nil))
+    (set-process-filter
+     (scala-cli-repl-get-process)
+     (lambda (process str)
+       (term-emulate-terminal process str)
+       (let ((str (substring-no-properties (xterm-color-filter str)))) ; Make a plain text
+         (when ob-scala-cli-debug-p (message "=== part ===\n%s\n=== /part ===" str))
+         (setq result (concat result str))
+         (when (s-ends-with? ob-scala-cli-prompt-str (s-trim-right result))
+           (when ob-scala-cli-debug-p (message "=== final ===\n%s\n=== /final ===" result))
+           (setq completed t)
+           (set-process-filter process nil)
+           ))))
 
-    (when ob-scala-cli-debug-p (message "#### %s" ob-scala-cli-eval-result))
-    (funcall parse-response file ob-scala-cli-eval-result)))
+    (comint-send-string (scala-cli-repl-get-process) cmd)
+    (while (not completed) (accept-process-output (scala-cli-repl-get-process)))
+    result))
 
-(defun ob-scala-cli--kill-buffer ()
+(defun ob-scala-cli-kill-buffer ()
   "Kills Scala CLI buffer."
-  (let ((buffer (get-buffer scala-cli-repl-buffer-name)))
-    (when buffer
-      (if scala-cli-ob-force-kill
-          (let ((process (get-buffer-process buffer)))
-            (when process
-              (set-process-query-on-exit-flag process nil)
-              (kill-process process)))
-        (kill-buffer buffer)))))
+  (let ((process (scala-cli-repl-get-process))
+        (buffer (scala-cli-repl-get-buffer)))
+    (when process
+      (when scala-cli-ob-force-kill (set-process-query-on-exit-flag process nil))
+      (kill-process process))
+    (when buffer (kill-buffer buffer))))
 
 (defun ob-scala-cli--parse-response-2 (file response)
   (->> response
