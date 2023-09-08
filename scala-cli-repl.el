@@ -1,4 +1,4 @@
-;;; scala-cli-repl.el --- Scala CLI REPL in term mode. -*- lexical-binding: t; -*-
+;;; scala-cli-repl.el --- Scala CLI REPL in term mode.
 
 ;; Copyright (C) 2023 Andrea
 
@@ -170,18 +170,18 @@ Argument FILE-NAME the file name."
                      scala-cli-repl-program
                      (s-join " " scala-cli-repl-program-local-args)))
 
-    (let* ((proc-buffer (apply 'term-ansi-make-term
-                               scala-cli-repl-buffer-name
-                               scala-cli-repl-program
-                               nil
-                               scala-cli-repl-program-local-args)))
-      (with-current-buffer proc-buffer
-        (term-char-mode)
-        (term-set-escape-char ?\C-x)
-        (setq-local term-prompt-regexp scala-cli-repl-prompt-regex)
-        (setq-local term-scroll-show-maximum-output t)
-        (setq-local term-scroll-to-bottom-on-output t)
-        (run-hooks 'scala-cli-repl-run-hook))))
+    (with-current-buffer
+        (apply 'term-ansi-make-term
+               scala-cli-repl-buffer-name
+               scala-cli-repl-program
+               nil
+               scala-cli-repl-program-local-args)
+      (term-char-mode)
+      (term-set-escape-char ?\C-x)
+      (setq-local term-prompt-regexp scala-cli-repl-prompt-regex)
+      (setq-local term-scroll-show-maximum-output t)
+      (setq-local term-scroll-to-bottom-on-output t)
+      (run-hooks 'scala-cli-repl-run-hook)))
 
   (pop-to-buffer scala-cli-repl-buffer-name))
 
