@@ -191,7 +191,7 @@ header is defined, we set it to our temporary Scala script."
          (s-params (s-join " " (ob-scala-cli--params params)))
          (deps (plist-get params ':dep))
          (version (plist-get params ':scala-version))
-         (file (ob-scala-cli--mk-lsp-file info))
+         (file (file-truename (ob-scala-cli--mk-lsp-file info)))
          (dir (file-name-directory file))
          (default-directory dir)) ; to change the working directory for shell-command
     (when (with-demoted-errors "Error: %S" (require 'lsp-metals))
