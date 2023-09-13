@@ -55,7 +55,8 @@ chmod +x scala-cli
 sudo mv scala-cli /usr/local/bin/scala-cli
 #+end_src
 
-** Org Babel supported parameters 
+** Org Babel
+*** Supported parameters
 :PROPERTIES:
 :CREATED:  [2023-07-20 Thu 21:11]
 :ID:       83d7d014-62dc-457c-9210-ec05661265fb
@@ -75,21 +76,46 @@ Currently supported header parameters are:
 
   you can set the JVM version to use for evaluating your code
 
-- :no-closure
-
-  by default the code is evaluated in a scope to not leak variables in the global scope of the REPL, but there may be cases where this causes errors like
-
-  #+begin_src text
-#+RESULTS:
-: ^
-:        error: eof expected but '}' found.
-```
-  #+end_src
-
-  this header fixes those by removing the extra scope.
+**Note**: the code is evaluated in a global scope by default, so you can use variables and functions across the blocks.
+If you don't want definitions to leak, wrap them in curly braces.
   
 If you enjoy Elisp, you can get an updated list of valid parameters
 evaluating =ob-scala-cli-supported-params=.
+
+Also see usage [[ob-scala-cli-tests.org][examples]].
+
+*** Useful options
+
+- =ob-scala-cli-default-params=
+
+  you can define default parameters locally or globally and don't specify them each block. Example:
+
+  #+begin_src elisp :results none
+  (setq ob-scala-cli-default-params '(:scala-version "2.13.11" :jvm 17))
+  #+end_src
+
+  then just write a code:
+
+  #+begin_src scala
+  println(s"""
+   |Scala version: ${scala.util.Properties.versionString}
+   |JVM version: ${System.getProperty("java.version")}""".stripMargin)
+  #+end_src
+
+  #+RESULTS:
+  : Scala version: version 2.13.11
+  : JVM version: 17.0.8
+
+  **Note**: if you use dependencies in multiple blocks specify also =:deps= for faster evaluation.
+
+- =scala-cli-ob-force-kill=
+
+  if you run blocks with different options (Scala version, JVM version, deps, etc.), you could face with an error:
+  #+begin_quote
+  Buffer "*Scala-Cli*" has a running process; kill it? (y or n)
+  #+end_quote
+
+  Set this flag if you want to forcely kill the process and the buffer.
 
 ** Similar projects
 :PROPERTIES:
