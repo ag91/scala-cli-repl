@@ -52,9 +52,16 @@
   :group 'org-babel)
 
 (defcustom ob-scala-cli-supported-params '(:scala-version :dep :jvm)
-  "The ob blocks headers supported by this ob-scala-cli."
+  "The ob blocks headers supported by ob-scala-cli."
   :type '(repeat symbol)
   :group 'ob-babel)
+
+(defconst org-babel-header-args:scala
+  (seq-map
+   (lambda (param)
+     `(,(intern (substring (symbol-name param) 1)) . :any))
+   ob-scala-cli-supported-params)
+  "Provide headers completion for Scala src blocks.")
 
 (defcustom ob-scala-cli-temp-dir (file-name-as-directory (concat temporary-file-directory "ob-scala-cli"))
   "A directory for temporary files."
@@ -143,7 +150,7 @@ Argument PARAMS the header arguments."
     result))
 
 (defun ob-scala-cli-kill-buffer ()
-  "Kills Scala CLI buffer."
+  "Kill Scala CLI buffer."
   (let ((process (scala-cli-repl-get-process))
         (buffer (scala-cli-repl-get-buffer)))
     (when process
@@ -152,6 +159,7 @@ Argument PARAMS the header arguments."
     (when buffer (kill-buffer buffer))))
 
 (defun ob-scala-cli--parse-response-2 (file response)
+  "Parse the result of a Scala 2 RESPONSE removing FILE mention."
   (->> response
        (s-split (format "Loading %s..." file)) ; the first part (loading ...) is not interesting
        cdr
@@ -163,6 +171,7 @@ Argument PARAMS the header arguments."
        ))
 
 (defun ob-scala-cli--parse-response-3 (file response)
+  "Parse the result of a Scala 3 RESPONSE removing FILE mention."
   (->> response
        (s-split (format ":load %s" file)) ; the first line is not interesting
        cdr
