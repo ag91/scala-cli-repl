@@ -142,7 +142,7 @@ Argument PARAMS the header arguments."
          (when (s-ends-with? ob-scala-cli-prompt-str (s-trim-right result))
            (when ob-scala-cli-debug-p (message "=== final ===\n%s\n=== /final ===" result))
            (setq completed t)
-           (set-process-filter process nil)
+           (set-process-filter process 'term-emulate-terminal)
            ))))
 
     (comint-send-string (scala-cli-repl-get-process) cmd)
@@ -161,8 +161,8 @@ Argument PARAMS the header arguments."
 (defun ob-scala-cli--parse-response-2 (file response)
   "Parse the result of a Scala 2 RESPONSE removing FILE mention."
   (->> response
-       (s-split (format "Loading %s..." file)) ; the first part (loading ...) is not interesting
-       cdr
+       (s-split "/repl.sc") ; the first part (loading ...) is not interesting
+       last
        (s-join "")
        (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
        (s-replace (format "%s:" file) "On line ") ; the temp file name is not interesting
@@ -170,10 +170,10 @@ Argument PARAMS the header arguments."
        (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
        ))
 
-(defun ob-scala-cli--parse-response-3 (file response)
+(defun ob-scala-cli--parse-response-3 (response)
   "Parse the result of a Scala 3 RESPONSE removing FILE mention."
   (->> response
-       (s-split (format ":load %s" file)) ; the first line is not interesting
+       (s-split "/repl.sc") ; the first line is not interesting
        cdr
        (s-join "")
        (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
