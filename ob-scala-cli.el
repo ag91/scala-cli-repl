@@ -170,7 +170,7 @@ Argument PARAMS the header arguments."
        (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
        ))
 
-(defun ob-scala-cli--parse-response-3 (response)
+(defun ob-scala-cli--parse-response-3 (file response)
   "Parse the result of a Scala 3 RESPONSE removing FILE mention."
   (->> response
        (s-split "/repl.sc") ; the first line is not interesting
