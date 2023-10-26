@@ -161,7 +161,7 @@ Argument PARAMS the header arguments."
 (defun ob-scala-cli--parse-response-2 (file response)
   "Parse the result of a Scala 2 RESPONSE removing FILE mention."
   (->> response
-       (s-split "/repl.sc") ; the first part (loading ...) is not interesting
+       (s-split "/repl.sc...") ; the first part (loading ...) is not interesting
        last
        (s-join "")
        (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
