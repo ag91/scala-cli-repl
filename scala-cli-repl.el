@@ -80,6 +80,11 @@ to work around that."
   :type 'hook
   :group 'scala-cli-repl)
 
+(defcustom scala-cli-load-repl-in-sbt-context nil
+  "Load REPL with Sbt project classpath of file."
+  :type 'boolean
+  :group 'scala-cli-repl)
+
 (defvar scala-cli-repl-program-local-args '()
   "Local args for scala-cli term repl program.")
 
@@ -102,6 +107,25 @@ to work around that."
 (defun scala-cli-repl-code-first-line (code)
   "Get the first line of CODE."
   (s-trim (car-safe (s-split "\n" code))))
+
+(defun scala-cli--sbt-project-p (&optional dir)
+  "Return DIR if there is a build.sbt file in the project tree."
+  (let* ((dir (or dir (expand-file-name ".")))
+         (sbt-p (seq-filter (lambda (e) (equal e "build.sbt")) (directory-files dir)))
+         (next-dir (file-name-directory (directory-file-name (expand-file-name dir)))))
+    (if (or (equal next-dir dir) sbt-p)
+        (and sbt-p dir)
+      (scala-cli--sbt-project-p next-dir))))
+
+(defun scala-cli--sbt-fullclasspath (dir)
+  "Extract classpath from sbt as a string in DIR."
+  (message "extracting sbt fullClasspath for %s... " dir)
+  (thread-last (shell-command-to-string (format "cd %s; sbt \"show fullClasspath\"" dir))
+               (s-replace-all '((")" . "") ("[info]" . "")))
+               (s-split "* Attributed(")
+               cdr
+               (seq-map (lambda (it) (s-trim (car (s-split "\n" it)))))
+               (s-join ":")))
 
 ;;;###autoload
 (defun scala-cli-repl-send-defun ()
@@ -165,7 +189,10 @@ Argument FILE-NAME the file name."
     (ignore-errors (kill-buffer scala-cli-repl-buffer-name))
 
     (setq scala-cli-repl-program-local-args scala-cli-repl-program-args)
-
+    (when-let ((dir (and scala-cli-load-repl-in-sbt-context (scala-cli--sbt-project-p))))
+      (setq scala-cli-repl-program-local-args
+            (append scala-cli-repl-program-local-args
+                    (list "--extra-jars" (scala-cli--sbt-fullclasspath dir)))))
     (message (format "Run: %s %s"
                      scala-cli-repl-program
                      (s-join " " scala-cli-repl-program-local-args)))

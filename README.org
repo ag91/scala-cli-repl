@@ -14,9 +14,13 @@ The REPL of [[https://scala-cli.virtuslab.org/][scala-cli]] in Emacs term mode.
 :ID:       6108d70b-9d48-4328-b0ce-51dc12d09107
 :END:
 
-You can access the REPL loading =scala-cli-repl.el=.
+You can access the REPL loading =scala-cli-repl.el= and running =scala-cli-repl=.
 
-If you like literate programming in Org Mode, you can load also
+It is possible to load an Sbt project in the REPL (i.e., be able to
+evaluate symbols defined in your project from the REPL) by setting the
+custom variable =(setq scala-cli-load-repl-in-sbt-context )=.
+
+Also, if you like literate programming in Org Mode, you can load also
 =ob-scala-cli.el=, which lets you run blocks like the following
 
 #+begin_src org
