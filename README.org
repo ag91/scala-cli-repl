@@ -60,6 +60,17 @@ sudo mv scala-cli /usr/local/bin/scala-cli
 #+end_src
 
 ** Org Babel
+:PROPERTIES:
+:ID:       414e8d40-8ab2-4de3-80a4-491b69230556
+:END:
+
+Make sure to use this snippet in your configuration to make sure that
+scala blocks get picked up by ob-scala-cli:
+
+#+begin_src elisp :noeval
+(add-to-list 'org-babel-load-languages '(scala-cli . t))
+#+end_src
+
 *** Supported parameters
 :PROPERTIES:
 :CREATED:  [2023-07-20 Thu 21:11]
