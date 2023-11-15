@@ -160,27 +160,28 @@ Argument PARAMS the header arguments."
 
 (defun ob-scala-cli--parse-response-2 (file response)
   "Parse the result of a Scala 2 RESPONSE removing FILE mention."
-  (->> response
-       (s-split "/repl.sc...") ; the first part (loading ...) is not interesting
-       last
-       (s-join "")
-       (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
-       (s-replace (format "%s:" file) "On line ") ; the temp file name is not interesting
-       s-trim
-       (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
-       ))
+  (thread-last
+    response
+    (s-split "/repl.sc...") ; the first part (loading ...) is not interesting
+    last
+    (s-join "")
+    (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
+    (s-replace (format "%s:" file) "On line ") ; the temp file name is not interesting
+    s-trim
+    (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
+    ))
 
 (defun ob-scala-cli--parse-response-3 (file response)
   "Parse the result of a Scala 3 RESPONSE removing FILE mention."
-  (->> response
-       (s-split "/repl.sc") ; the first line is not interesting
-       cdr
-       (s-join "")
-       (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
-       (replace-regexp-in-string "^~" "") ; remove a useless line with ~
-       s-trim
-       (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
-       ))
+  (thread-last response
+               (s-split "/repl.sc") ; the first line is not interesting
+               cdr
+               (s-join "")
+               (s-replace ob-scala-cli-prompt-str "") ; remove "scala>"
+               (replace-regexp-in-string "^~" "") ; remove a useless line with ~
+               s-trim
+               (replace-regexp-in-string "[\r\n]+" "\n") ; removing ^M
+               ))
 
 (defun ob-scala-cli-lsp-org ()
   "Modify src block and enable `lsp-metals' to get goodies like code completion in literate programming.
