@@ -17,7 +17,7 @@ jobs:
           # Add more lines like this if you want to test on different Emacs versions.
           - 27.2
           - 28.1
-          - 29.0
+          - 29.1
 
     steps:
     - name: Set up Emacs
