@@ -1,0 +1,9 @@
+; -*- mode: emacs-lisp; lexical-binding: t -*-
+
+;; Autodetermined by `eldev init'.
+(eldev-use-package-archive 'melpa)
+
+;; these are currently optional dependencies only required for
+;; testing
+(eldev-add-extra-dependencies 'test)
+(setq eldev-project-main-file "scala-cli-repl.el")

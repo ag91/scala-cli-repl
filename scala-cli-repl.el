@@ -5,7 +5,7 @@
 ;; Author: ag91 <andrea-dev@hotmail.com>
 ;; URL: https://github.com/ag91/scala-cli-repl
 ;; Package-Requires: ((emacs "24.3") (s "1.12.0") (scala-mode "0.23"))
-;; Version: 0.0
+;; Version: 0.1
 ;; Keywords: processes, scala-cli, term, scala
 
 ;;; License:

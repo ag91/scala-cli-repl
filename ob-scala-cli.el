@@ -2,8 +2,8 @@
 
 ;; Author: Andrea <andrea-dev@hotmail.com>
 ;; URL: https://github.com/ag91/scala-cli-repl
-;; Package-Requires: ((emacs "28.1") (s "1.12.0") (scala-cli-term-repl "0.0") (xterm-color "1.7"))
-;; Version: 0.0
+;; Package-Requires: ((emacs "28.1") (s "1.12.0") (xterm-color "1.7"))
+;; Version: 0.1
 ;; Keywords: tools, scala-cli, org-mode, scala, org-babel
 
 ;;; License:
