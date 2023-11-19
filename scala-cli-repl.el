@@ -228,19 +228,18 @@ Argument STRING the code to send."
 
 ;;;###autoload
 
-(defun scala-cli-convert-sbt-dependencies (fn)
-  "Substitute sbt-style dependencies with scala-cli ones, and apply FN to that."
-  (if (region-active-p)
-      (thread-last
-        (substring-no-properties (funcall region-extract-function))
-        (s-replace-all '((" " . "") ("\"" . "") ("%" . ":")))
-        (funcall fn))
-    (error "You need to highlight the dependency in your region to use this")))
+(defun scala-cli-convert-sbt-dependencies (dependencies fn)
+  "Substitute sbt-style DEPENDENCIES with scala-cli ones, and apply FN to that."
+  (thread-last dependencies
+               (s-replace-all '((" " . "") ("\"" . "") ("%" . ":")))
+               (funcall fn)))
 
-(defun scala-cli-conver-and-kill-deps ()
+(defun scala-cli-convert-and-kill-deps ()
   "Kill sbt dependency in Mill format."
   (interactive)
-  (funcall 'scala-cli-convert-sbt-dependencies 'kill-new))
+  (if (region-active-p)
+      (funcall 'scala-cli-convert-sbt-dependencies (substring-no-properties (funcall region-extract-function)) 'kill-new)
+    (error "You need to highlight the dependency in your region to use this")))
 
 (defun scala-cli-repl-import-ivy-dependencies-from-sbt ()
   "Try to import ivy dependencies from sbt file.
