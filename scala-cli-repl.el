@@ -38,6 +38,7 @@
 (require 'scala-mode)
 (require 's)
 (require 'subr-x)
+(require 'json)
 
 (defgroup scala-cli-repl nil
   "A minor mode for a Scala-Cli REPL."
@@ -85,6 +86,11 @@ to work around that."
   :type 'boolean
   :group 'scala-cli-repl)
 
+(defcustom scala-cli-load-repl-in-mill-context nil
+  "Load REPL with Mill project classpath of file."
+  :type 'boolean
+  :group 'scala-cli-repl)
+
 (defvar scala-cli-repl-program-local-args '()
   "Local args for scala-cli term repl program.")
 
@@ -117,6 +123,15 @@ to work around that."
         (and sbt-p dir)
       (scala-cli--sbt-project-p next-dir))))
 
+(defun scala-cli--mill-project-p (&optional dir)
+  "Return DIR if there is a build.sc file in the project tree."
+  (let* ((dir (or dir (expand-file-name ".")))
+         (sbt-p (seq-filter (lambda (e) (equal e "build.sc")) (directory-files dir)))
+         (next-dir (file-name-directory (directory-file-name (expand-file-name dir)))))
+    (if (or (equal next-dir dir) sbt-p)
+        (and sbt-p dir)
+      (scala-cli--mill-project-p next-dir))))
+
 (defun scala-cli--sbt-fullclasspath (dir)
   "Extract classpath from sbt as a string in DIR."
   (message "extracting sbt fullClasspath for %s... " dir)
@@ -126,6 +141,29 @@ to work around that."
                cdr
                (seq-map (lambda (it) (s-trim (car (s-split "\n" it)))))
                (s-join ":")))
+
+(defun scala-cli--mill-fullclasspath (dir)
+  "Extract classpath from mill as a colon-separated string in DIR."
+  (message "extracting mill runClasspath for %s... " dir)
+  (let* ((output (shell-command-to-string
+                  (format "cd %s; mill show __.runClasspath 2>/dev/null" dir)))
+         (json (json-read-from-string output))
+         (paths (cond
+                 ((hash-table-p json)
+                  (let (all)
+                    (maphash (lambda (_k v)
+                               (dolist (p (append v nil)) (push p all)))
+                             json)
+                    (nreverse all)))
+                 ((listp json)
+                  (let (all)
+                    (dolist (entry json)
+                      (dolist (p (append (cdr entry) nil))
+                        (push p all)))
+                    (nreverse all)))
+                 ((vectorp json) (append json nil))
+                 (t (error "Unexpected mill output format: %s" json)))))
+    (string-join paths ":")))
 
 ;;;###autoload
 (defun scala-cli-repl-send-defun ()
@@ -187,15 +225,19 @@ Argument FILE-NAME the file name."
 
   (unless (comint-check-proc scala-cli-repl-buffer-name)
     (ignore-errors (kill-buffer scala-cli-repl-buffer-name))
-
     (setq scala-cli-repl-program-local-args scala-cli-repl-program-args)
     (when-let ((dir (and scala-cli-load-repl-in-sbt-context (scala-cli--sbt-project-p))))
       (setq scala-cli-repl-program-local-args
             (append scala-cli-repl-program-local-args
                     (list "--extra-jars" (scala-cli--sbt-fullclasspath dir)))))
-    (message (format "Run: %s %s"
+    (when-let ((dir (and scala-cli-load-repl-in-mill-context (scala-cli--mill-project-p))))
+      (setq scala-cli-repl-program-local-args
+            (append scala-cli-repl-program-local-args
+                    (list "--extra-jars" (scala-cli--mill-fullclasspath dir)))))
+    (message (concat "Run: "
                      scala-cli-repl-program
-                     (s-join " " scala-cli-repl-program-local-args)))
+                     " "
+                     (s-truncate 20 (s-join " " scala-cli-repl-program-local-args))))
 
     (with-current-buffer
         (apply 'term-ansi-make-term
@@ -281,4 +323,3 @@ is available."
 (provide 'scala-cli-repl)
 
 ;;; scala-cli-repl.el ends here
-
