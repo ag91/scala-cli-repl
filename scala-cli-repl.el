@@ -320,6 +320,70 @@ is available."
   "Minor mode for interacting with an Scala-Cli REPL."
   :keymap scala-cli-repl-minor-mode-map)
 
+(defvar scala-cli-repl-inline-eval-overlay nil
+  "The overlay showing last inline eval result.")
+
+(defun scala-cli-repl--inline-eval-overlay (text pos)
+  "Display TEXT as an inline eval overlay at POS."
+  (when scala-cli-repl-inline-eval-overlay
+    (delete-overlay scala-cli-repl-inline-eval-overlay))
+  (setq scala-cli-repl-inline-eval-overlay
+        (make-overlay pos (+ pos 1) (current-buffer)))
+  (overlay-put scala-cli-repl-inline-eval-overlay 'after-string
+               (propertize (concat " " text) 'face 'shadow))
+  (run-at-time 3 nil #'scala-cli-repl--cleanup-overlay))
+
+(defun scala-cli-repl--cleanup-overlay ()
+  (when (overlayp scala-cli-repl-inline-eval-overlay)
+    (delete-overlay scala-cli-repl-inline-eval-overlay)
+    (setq scala-cli-repl-inline-eval-overlay nil)))
+
+(defun scala-cli-repl--prompt-str ()
+  "Extract literal prompt string from `scala-cli-repl-prompt-regex'."
+  (s-trim (s-replace "^" "" scala-cli-repl-prompt-regex)))
+
+(defun scala-cli-repl--send-region-with-overlay (orig-fn start end &rest args)
+  "Advice around `scala-cli-repl-send-region' to show output as inline overlay.
+ORIG-FN is the original function, START and END are the region bounds."
+  (if (not (scala-cli-repl-is-alive?))
+      (apply orig-fn start end args)
+    (let ((result "")
+          (completed nil)
+          (proc (scala-cli-repl-get-process))
+          (prompt-str (scala-cli-repl--prompt-str)))
+      (set-process-filter
+       proc
+       (lambda (process str)
+         (term-emulate-terminal process str)
+         (let ((clean (substring-no-properties
+                       (if (fboundp 'xterm-color-filter)
+                           (xterm-color-filter str) str))))
+           (setq result (concat result clean))
+           (when (s-ends-with? prompt-str (s-trim-right result))
+             (setq completed t)
+             (set-process-filter process 'term-emulate-terminal)))))
+      (apply orig-fn start end args)
+      (let ((timeout 10)
+            (start-time (current-time)))
+        (while (and (not completed)
+                    (< (float-time (time-since start-time)) timeout))
+          (accept-process-output proc)))
+      (when completed
+        (scala-cli-repl--inline-eval-overlay
+         (s-trim (car (s-slice-at (regexp-quote prompt-str) (s-trim-right result))))
+         end))
+      (unless completed
+        (message "scala-cli inline eval timed out")))))
+
+(define-minor-mode scala-cli-repl-inline-eval-mode
+  "Show REPL output as an inline overlay after sending a region."
+  :lighter ""
+  (if scala-cli-repl-inline-eval-mode
+      (advice-add 'scala-cli-repl-send-region :around
+                  #'scala-cli-repl--send-region-with-overlay)
+    (advice-remove 'scala-cli-repl-send-region :around
+                   #'scala-cli-repl--send-region-with-overlay)))
+
 (provide 'scala-cli-repl)
 
 ;;; scala-cli-repl.el ends here
